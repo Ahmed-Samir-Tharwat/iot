@@ -1,0 +1,237 @@
+
+datasource db {
+  provider  = "postgresql"
+  url  	    = env("DATABASE_URL")
+  // uncomment next line if you use Prisma <5.10
+  // directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+generator client {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+model User {
+  id       String @id @default(uuid())
+  name     String
+  username String @unique
+  password String
+
+  img      String   @default("C:/Users/Ali/OneDrive - Faculty of Engineering Ain Shams University/Desktop/smart/uploads/messi.jpg")
+  prevImgs String[]
+
+  role UserRole @default(student)
+
+  licensePlate String?
+
+  student    Student?
+  teacher    Teacher?
+  controller Controller?
+  security   Security?
+  admin      Admin?
+
+  sessions Session[]
+
+  encodedImageData String?
+}
+
+model Session {
+  id                String  @id @default(uuid())
+  userId            String
+  active            Boolean @default(true)
+  device            String
+  notificationToken String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum UserRole {
+  student
+  teacher
+  controller
+  security
+  admin
+}
+
+model Student {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  registerations CourseProfile[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Teacher {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  courses Course[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Controller {
+  id       String           @id @default(uuid())
+  userId   String           @unique
+  location String?
+  controls ControlElement[]
+
+  apiKeys ApiKey[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Security {
+  id     String   @id @default(uuid())
+  userId String   @unique
+  shifts String[]
+  area   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Admin {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Course {
+  id          String  @id @default(uuid())
+  name        String
+  code        String  @unique
+  creditHours Int
+  content     String?
+
+  students CourseProfile[]
+
+  teachers Teacher[]
+  lectures Lecture[]
+}
+
+model CourseProfile {
+  id        String @id @default(uuid())
+  studentId String
+  courseId  String
+  semester  String @default("Fall 23")
+
+  attendance LectureAttendees[]
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId, semester])
+}
+
+model Lecture {
+  id       String    @id @default(uuid())
+  courseId String
+  time     DateTime
+  duration Int
+  ended    DateTime?
+  location String
+
+  attendees LectureAttendees[]
+  imgs      LectureImage[]
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model LectureImage {
+  id        String  @id @default(uuid())
+  img       String
+  students  Int     @default(0)
+  faces     Int     @default(0)
+  processed Boolean @default(false)
+
+  lectureId String
+
+  capturedAt DateTime @default(now())
+
+  lecture Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+}
+
+model LectureAttendees {
+  id        String @id @default(uuid())
+  lectureId String
+  studentId String
+
+  times DateTime[]
+
+  lecture Lecture       @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  student CourseProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([lectureId, studentId])
+}
+
+enum ControlElement {
+  attendance
+  gate
+  parking
+  garbage
+  irrigation
+  lighting
+  image
+}
+
+model ParkingSpot {
+  id String @id @default(uuid())
+
+  isEmpty  Boolean @default(true)
+  location String
+  isSmart  Boolean @default(false)
+  poly     Json?
+}
+
+model TrashCan {
+  id          String   @id @default(uuid())
+  location    String
+  level       Int      @default(0)
+  lastEmptied DateTime @default(now())
+}
+
+model Plant {
+  id          String   @id @default(uuid())
+  lastUpdated DateTime @map("lastWatered")
+  isWatering  Boolean
+  type        String
+}
+
+model Light {
+  id       String  @id @default(uuid())
+  state    Boolean
+  location String
+}
+
+model Upload {
+  key       String   @id
+  name      String
+  size      Int
+  url       String   @unique
+  metadata  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Camera {
+  id       String  @id @default(uuid())
+  location String
+  ip       String
+  tcp      Boolean @default(false)
+}
+
+model ApiKey {
+  id           String @id @default(uuid())
+  key          String @unique
+  name         String
+  controllerId String
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  controller Controller @relation(fields: [controllerId], references: [id], onDelete: Cascade)
+
+  @@unique([name, controllerId])
+}
